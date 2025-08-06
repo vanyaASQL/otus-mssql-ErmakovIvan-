@@ -1,0 +1,38 @@
+-- 1. Планируется аггрегация по категориям и тегам. Планируем снижать затраты на сканирование и сортировку
+CREATE NONCLUSTERED INDEX IX_Transactions_Date_Category_Amount
+ON Transactions (date, category_id)
+INCLUDE (amount)
+
+SELECT 
+	t0.transaction_id,
+	t0.amount,
+	t1.name
+FROM Transactions t0
+JOIN Categories t1 ON t0.category_id = t1.category_id
+WHERE t0.date BETWEEN '2023-01-01' AND '2023-01-31';
+
+-- 2. Скорее всего будут запросы с подзапросами по тегам. 
+CREATE NONCLUSTERED INDEX IX_TransactionsTags_TransactionId
+ON TransactionsTags (transaction_id)
+INCLUDE (tag_id)
+
+SELECT 
+    t1.name
+FROM TransactionsTags t0
+JOIN Tags t1 ON t0.tag_id = t1.tag_id
+WHERE t0.transaction_id = 12345;
+
+-- 3. Индекс для join с внешними ключами.
+CREATE NONCLUSTERED INDEX IX_Transactions_MultiFK
+ON Transactions (category_id, operation_type_id, expense_type_id, tax_type_id)
+INCLUDE (transaction_id, date, amount)
+
+SELECT 
+    t0.transaction_id,
+    t0.date,
+    t0.amount,
+    c.name
+FROM Transactions t0 WITH (INDEX(IX_Transactions_MultiFK))
+LEFT JOIN Categories c ON t0.category_id = c.category_id
+LEFT JOIN OperationTypes ot ON t0.operation_type_id = ot.operation_type_id
+WHERE t0.date > '2023-01-01';

@@ -1,9 +1,9 @@
--- создание базы
+-- Г±Г®Г§Г¤Г Г­ГЁГҐ ГЎГ Г§Г»
 create database ExpenseAnalysis
 
 SET XACT_ABORT ON
 
--- создание таблиц
+-- Г±Г®Г§Г¤Г Г­ГЁГҐ ГІГ ГЎГ«ГЁГ¶
 use ExpenseAnalysis
 
 CREATE TABLE [Transactions] (
@@ -107,7 +107,7 @@ REFERENCES [Tags] ([tag_id])
 
 ALTER TABLE [TransactionsTags] CHECK CONSTRAINT [FK_TransactionsTags_tag_id]
 
--- создание индексов
+-- Г±Г®Г§Г¤Г Г­ГЁГҐ ГЁГ­Г¤ГҐГЄГ±Г®Гў
 CREATE NONCLUSTERED INDEX IX_Transactions_Date_Operation
 ON Transactions (date, operation_type_id);
 
@@ -132,33 +132,34 @@ ON TaxTypes (tax_type_id);
 CREATE UNIQUE CLUSTERED INDEX [IX_TransactionsTags_Unique]
 ON [TransactionsTags] ([transaction_id], [tag_id])
 
--- ограничения
--- 1. Сумма операции не может быть нулевой
+-- Г®ГЈГ°Г Г­ГЁГ·ГҐГ­ГЁГї
+-- 1. Г‘ГіГ¬Г¬Г  Г®ГЇГҐГ°Г Г¶ГЁГЁ Г­ГҐ Г¬Г®Г¦ГҐГІ ГЎГ»ГІГј Г­ГіГ«ГҐГўГ®Г©
 ALTER TABLE Transactions
 ADD CONSTRAINT CHK_Transactions_Amount_NonZero
 CHECK (amount <> 0);
 
--- 2. Имя тега не может быть пустым
+-- 2. Г€Г¬Гї ГІГҐГЈГ  Г­ГҐ Г¬Г®Г¦ГҐГІ ГЎГ»ГІГј ГЇГіГ±ГІГ»Г¬
 ALTER TABLE Tags
 ADD CONSTRAINT CHK_Tags_Name_NotEmpty
 CHECK (LEN(LTRIM(RTRIM(name))) > 0);
 
--- 3. Имя категории не может быть длиннее 50 символов
+-- 3. Г€Г¬Гї ГЄГ ГІГҐГЈГ®Г°ГЁГЁ Г­ГҐ Г¬Г®Г¦ГҐГІ ГЎГ»ГІГј Г¤Г«ГЁГ­Г­ГҐГҐ 50 Г±ГЁГ¬ГўГ®Г«Г®Гў
 ALTER TABLE Categories
 ADD CONSTRAINT CHK_Categories_Name_Length
 CHECK (LEN(name) <= 50);
 
--- 4. Допустимые значения - Доход и Расход
+-- 4. Г„Г®ГЇГіГ±ГІГЁГ¬Г»ГҐ Г§Г­Г Г·ГҐГ­ГЁГї - Г„Г®ГµГ®Г¤ ГЁ ГђГ Г±ГµГ®Г¤
 ALTER TABLE OperationTypes
 ADD CONSTRAINT CHK_Operation_Types_Name_Valid
-CHECK (name IN (N'Доход', N'Расход'));
+CHECK (name IN (N'Г„Г®ГµГ®Г¤', N'ГђГ Г±ГµГ®Г¤'));
 
--- 5. Имя не должно содержать цифр
+-- 5. Г€Г¬Гї Г­ГҐ Г¤Г®Г«Г¦Г­Г® Г±Г®Г¤ГҐГ°Г¦Г ГІГј Г¶ГЁГґГ°
 ALTER TABLE ExpenseType
 ADD CONSTRAINT CHK_Expense_Type_NoDigits
 CHECK (name NOT LIKE '%[0-9]%');
 
--- 6. Длина имени налога должна быть до 1000 символов, чтобы исключить мусор
+-- 6. Г„Г«ГЁГ­Г  ГЁГ¬ГҐГ­ГЁ Г­Г Г«Г®ГЈГ  Г¤Г®Г«Г¦Г­Г  ГЎГ»ГІГј Г¤Г® 1000 Г±ГЁГ¬ГўГ®Г«Г®Гў, Г·ГІГ®ГЎГ» ГЁГ±ГЄГ«ГѕГ·ГЁГІГј Г¬ГіГ±Г®Г°
 ALTER TABLE TaxTypes
 ADD CONSTRAINT CHK_Tax_Types_Name_Length
+
 CHECK (LEN(name) <= 100);

@@ -4,9 +4,9 @@ ON Transactions (date, category_id)
 INCLUDE (amount)
 
 SELECT 
-	t0.transaction_id,
-	t0.amount,
-	t1.name
+    t0.transaction_id,
+    t0.amount,
+    t1.name
 FROM Transactions t0
 JOIN Categories t1 ON t0.category_id = t1.category_id
 WHERE t0.date BETWEEN '2023-01-01' AND '2023-01-31';

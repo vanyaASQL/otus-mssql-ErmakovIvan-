@@ -1,0 +1,160 @@
+/*
+Домашнее задание по курсу MS SQL Server Developer в OTUS.
+
+Занятие "12 - Хранимые процедуры, функции, триггеры, курсоры".
+
+Задания выполняются с использованием базы данных WideWorldImporters.
+
+Бэкап БД можно скачать отсюда:
+https://github.com/Microsoft/sql-server-samples/releases/tag/wide-world-importers-v1.0
+Нужен WideWorldImporters-Full.bak
+
+Описание WideWorldImporters от Microsoft:
+* https://docs.microsoft.com/ru-ru/sql/samples/wide-world-importers-what-is
+* https://docs.microsoft.com/ru-ru/sql/samples/wide-world-importers-oltp-database-catalog
+*/
+
+USE WideWorldImporters
+
+/*
+Во всех заданиях написать хранимую процедуру / функцию и продемонстрировать ее использование.
+*/
+
+/*
+1) Написать функцию возвращающую Клиента с наибольшей суммой покупки.
+*/
+
+CREATE FUNCTION Sales.GetCustomerWithMaxOrderSum()
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT TOP 1
+        t2.CustomerID,
+        t2.CustomerName,
+        SUM(t1.UnitPrice * t1.Quantity) AS TotalOrderSum
+    FROM Sales.Orders t0
+    JOIN Sales.OrderLines t1 ON t0.OrderID = t1.OrderID
+    JOIN Sales.Customers t2 ON t0.CustomerID = t2.CustomerID
+    GROUP BY t2.CustomerID, t2.CustomerName
+    ORDER BY TotalOrderSum DESC
+);
+GO
+
+SELECT 
+    CustomerID,
+    CustomerName,
+    TotalOrderSum
+FROM Sales.GetCustomerWithMaxOrderSum();
+
+/*
+2) Написать хранимую процедуру с входящим параметром СustomerID, выводящую сумму покупки по этому клиенту.
+Использовать таблицы :
+Sales.Customers
+Sales.Invoices
+Sales.InvoiceLines
+*/
+
+CREATE PROCEDURE Sales.GetCustomerTotalPurchase
+    @CustomerID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        t0.CustomerID,
+        t0.CustomerName,
+        COALESCE(SUM(t2.UnitPrice * t2.Quantity), 0) AS TotalPurchaseSum
+    FROM Sales.Customers t0
+    LEFT JOIN Sales.Invoices t1 ON t0.CustomerID = t1.CustomerID
+    LEFT JOIN Sales.InvoiceLines t2 ON t1.InvoiceID = t2.InvoiceID
+    WHERE t0.CustomerID = @CustomerID
+    GROUP BY t0.CustomerID, t0.CustomerName;
+END;
+GO
+
+EXEC Sales.GetCustomerTotalPurchase @CustomerID = 1;
+
+/*
+3) Создать одинаковую функцию и хранимую процедуру, посмотреть в чем разница в производительности и почему.
+*/
+
+CREATE FUNCTION Sales.GetCustomerTotalPurchaseFunc (@CustomerID INT)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        t0.CustomerID,
+        t0.CustomerName,
+        COALESCE(SUM(t2.UnitPrice * t2.Quantity), 0) AS TotalPurchaseSum
+    FROM Sales.Customers t0
+    LEFT JOIN Sales.Invoices t1 ON t0.CustomerID = t1.CustomerID
+    LEFT JOIN Sales.InvoiceLines t2 ON t1.InvoiceID = t2.InvoiceID
+    WHERE t0.CustomerID = @CustomerID
+    GROUP BY t0.CustomerID, t0.CustomerName
+);
+GO
+
+CREATE PROCEDURE Sales.GetCustomerTotalPurchaseProc @CustomerID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        t0.CustomerID,
+        t0.CustomerName,
+        COALESCE(SUM(il.UnitPrice * t2.Quantity), 0) AS TotalPurchaseSum
+    FROM Sales.Customers t0 
+    LEFT JOIN Sales.Invoices t1 ON t0.CustomerID = t1.CustomerID
+    LEFT JOIN Sales.InvoiceLines t2 ON t1.InvoiceID = t2.InvoiceID
+    WHERE t0.CustomerID = @CustomerID
+    GROUP BY t0.CustomerID, t0.CustomerName;
+END;
+GO
+
+SELECT * FROM Sales.GetCustomerTotalPurchaseFunc(1);
+EXEC Sales.GetCustomerTotalPurchaseProc @CustomerID = 1;
+
+/*
+Планы выполнения идентичны, так как запросы внутри функции и процедуры одинаковы. 
+В целом функция возвращает таблицу, что добавляет накладные расходы на обработку результаты как табличного типа. Она в целом используется в select, что можно усложнить оптимизацию в сложных запросах
+А процедура выполняется как отдельный блок, возвращая результат напрямую. 
+*/
+
+/*
+4) Создайте табличную функцию покажите как ее можно вызвать для каждой строки result set'а без использования цикла. 
+*/
+
+CREATE FUNCTION Sales.GetTopStockItemsForCustomer (@CustomerID INT)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        t3.StockItemID,
+        t3.StockItemName,
+        SUM(t2.Quantity) AS TotalQuantitySold
+    FROM Sales.Customers t0
+    LEFT JOIN Sales.Invoices t1 ON t0.CustomerID = t1.CustomerID
+    LEFT JOIN Sales.InvoiceLines t2 ON t1.InvoiceID = t2.InvoiceID
+    LEFT JOIN Warehouse.StockItems t3 ON t2.StockItemID = t3.StockItemID
+    WHERE t0.CustomerID = @CustomerID
+    GROUP BY t3.StockItemID, t3.StockItemName
+    HAVING SUM(t2.Quantity) > 0
+    ORDER BY SUM(t2.Quantity) DESC
+    OFFSET 0 ROWS FETCH NEXT 3 ROWS ONLY
+);
+GO
+
+SELECT 
+    t0.CustomerID,
+    t0.CustomerName,
+    t1.StockItemID,
+    t1.StockItemName,
+    t1.TotalQuantitySold
+FROM Sales.Customers t0
+CROSS APPLY Sales.GetTopStockItemsForCustomer(t0.CustomerID) t1;
+
+/*
+5) Опционально. Во всех процедурах укажите какой уровень изоляции транзакций вы бы использовали и почему. 
+*/

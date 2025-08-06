@@ -1,0 +1,22 @@
+-- создаем assembly
+create assembly SimpleDemo
+from 'C:\Users\ermakov.im\Downloads\SplitString\SplitString\bin\Debug\SplitString.dll'
+with permission_set = safe
+
+-- создаем функцию
+create function [dbo].SplitStringCLR(@text [nvarchar](max), @delimiter [nchar](1))
+
+return table (
+
+part nvarchar(max),
+
+ID_ODER int
+
+) with execute as caller
+
+as 
+
+external name SimpleDemo.UserDefinedFunctions.SplitString
+
+-- демонстрация
+select * from dbo.SplitStringCLR(N'привет,приветпривет,привет', ',');

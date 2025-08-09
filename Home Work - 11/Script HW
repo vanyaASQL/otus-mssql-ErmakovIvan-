@@ -25,7 +25,7 @@ WHERE t0.transaction_id = 12345;
 -- 3. Индекс для join с внешними ключами.
 CREATE NONCLUSTERED INDEX IX_Transactions_MultiFK
 ON Transactions (category_id, operation_type_id, expense_type_id, tax_type_id)
-INCLUDE (transaction_id, date, amount)
+INCLUDE (date, amount)
 
 SELECT 
     t0.transaction_id,
